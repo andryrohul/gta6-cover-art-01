@@ -7,9 +7,11 @@
 # Vice City Sunset — Cover Maker
 
 Turn any photo and a caption into poster-style cover art, offline in the browser.
-The cover is drawn on a canvas: a multi-panel poster grid, a Vice City sunset or
-neon colour grade, palm silhouettes and a skyline drawn in code, and big bold
-lettering — then exported as a PNG in the common post sizes.
+The cover is drawn on a canvas: a dense multi-panel poster collage, a Vice City
+sunset or neon colour grade, and a huge chrome title that overlaps the photos —
+with poster furniture drawn in code (a press-quote strip, a starburst seal, a
+HEAT pill, a palm-and-sun tagline strip and a micro credits line) — then
+exported as a PNG in the common post sizes.
 
 ## Use it
 
@@ -18,13 +20,13 @@ node serve.ts
 # open http://localhost:8080
 ```
 
-1. Photos load with two samples already in place. Add up to 4 of your own photos
+1. Photos load with six samples already in place. Add up to 6 of your own photos
    (they are read on your machine and never uploaded anywhere).
-2. Pick one of 6 layouts (Hero 4-Panel, Nine Grid, Full Bleed, Tilted Snaps,
-   Split Duo, Triptych) and one of 5 colour grades (Vice Sunset, Neon Nights,
-   Golden Hour, Palm Noir, Bubblegum).
-3. Edit the title and subtitle, or tap a caption preset. Pick a title colour,
-   toggle palms, the heat badge and film grain.
+2. Pick one of 7 layouts (Mosaic 6-Panel, Hero 4-Panel, Nine Grid, Full Bleed,
+   Tilted Snaps, Split Duo, Triptych) and one of 6 colour grades (Vice Sunset,
+   Neon Nights, Golden Hour, Palm Noir, Bubblegum, Fever Dream).
+3. Edit the title and subtitle, or tap a caption preset. Pick a title colour —
+   it tints the chrome gradient — toggle palms, the heat badge and film grain.
 4. Click a panel to select it, drag it to pan the photo, scroll or use the zoom
    slider to crop it, choose which photo fills that panel, or fill every panel
    with one photo.
@@ -32,13 +34,13 @@ node serve.ts
 
 ## Originality
 
-All art is original: the sunset sky, sun, skyline, palm trees, halftone title
-block, grain and vignette are drawn in code (`app/src/cover.js`). The lettering
-uses Anton and Pacifico, both under the SIL Open Font License (see
-`app/fonts/OFL-Anton.txt` and `app/fonts/OFL-Pacifico.txt`). The two sample
-photos (`app/samples/`) were made with an image model for make.fun and are free
-to use. No Rockstar Games logo, wordmark, artwork, character or font is used
-anywhere in this app.
+All art is original: the sunset sky, sun, skyline, palm trees, chrome title,
+starburst seal, quote strip, tagline strip, grain and vignette are drawn in
+code (`app/src/cover.js`). The lettering uses Anton and Pacifico, both under
+the SIL Open Font License (see `app/fonts/OFL-Anton.txt` and
+`app/fonts/OFL-Pacifico.txt`). The six sample photos (`app/samples/`) were
+made with an image model for make.fun and are free to use. No Rockstar Games
+logo, wordmark, artwork, character or font is used anywhere in this app.
 
 ## Layout
 

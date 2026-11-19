@@ -1,9 +1,15 @@
-// Vice City Sunset cover engine: draws a multi-panel poster cover onto any 2D canvas.
-// Every visual is drawn in code — sunset sky, sun, skyline, palm silhouettes, halftone
-// title block, grain and vignette — so the art is original and needs no image assets.
-// Photos are the user's own; the engine only ever draws them on the local machine.
+// Vice City Sunset cover engine (v2): draws a multi-panel poster cover onto any
+// 2D canvas. Every visual is drawn in code — sunset sky, sun, skyline, palm
+// silhouettes, chrome title, starburst badge, quote strip, bottom tagline strip,
+// grain and vignette — so the art is original and needs no image assets. Photos
+// are the user's own; the engine only ever draws them on the local machine.
+// v2: the title is chrome and overlaps the photos (no dead band below them),
+// the default layout is a dense 6-panel Mosaic, and the cover carries poster
+// furniture: a press-quote strip, a starburst badge, a HEAT pill, a palm-and-sun
+// tagline strip and a micro credits line.
 
 export const LAYOUTS = [
+  { id: 'mosaic', name: 'Mosaic 6-Panel', panels: 6, blurb: 'Hero + five scenes, poster style' },
   { id: 'hero', name: 'Hero 4-Panel', panels: 4, blurb: 'Big hero + three stacked' },
   { id: 'grid9', name: 'Nine Grid', panels: 9, blurb: '3 x 3 poster grid' },
   { id: 'fullbleed', name: 'Full Bleed', panels: 1, blurb: 'One photo, edge to edge' },
@@ -18,7 +24,11 @@ export const GRADES = [
   { id: 'golden', name: 'Golden Hour', sky: ['#3a1c00', '#ff8c42', '#ffd166'], tint: 'golden' },
   { id: 'noir', name: 'Palm Noir', sky: ['#06121f', '#123a5c', '#2ec4b6'], tint: 'noir' },
   { id: 'bubblegum', name: 'Bubblegum', sky: ['#3d0c4e', '#ff70a6', '#ffd670'], tint: 'bubblegum' },
+  { id: 'fever', name: 'Fever Dream', sky: ['#2a0a4a', '#ff2e88', '#ffb347'], tint: 'fever' },
 ];
+
+/** The six free sample photos (app/samples/), in photo-slot order. */
+export const SAMPLES = ['boulevard', 'pier', 'street', 'portrait', 'highway', 'gasstation'];
 
 export const PRESETS = [
   { title: 'VICE CITY', subtitle: 'Sunset Heist' },
@@ -30,26 +40,38 @@ export const PRESETS = [
 
 export const TITLE_COLORS = ['#ffffff', '#ffd166', '#ff5e78', '#00e5ff', '#c8f169'];
 
-/** A fresh default state: samples preloaded by the editor, hero layout, Vice grade. */
+/** A fresh default state: samples preloaded by the editor, Mosaic layout, Vice grade. */
 export function defaultState() {
   return {
-    layout: 'hero',
+    layout: 'mosaic',
     grade: 'vice',
     title: 'VICE CITY',
     subtitle: 'Sunset Heist',
     titleColor: '#ffffff',
-    photos: [null, null, null, null],
-    panelPhoto: [0, 1, 0, 1, 0, 1, 0, 1, 0],
-    // Small panels default to a slight top bias so faces survive the crop;
-    // the hero panel (slot 0) stays centred.
-    crops: Array.from({ length: 9 }, (_, i) => (i === 0 ? { ox: 0, oy: 0, zoom: 1 } : { ox: 0, oy: -0.45, zoom: 1 })),
+    photos: [null, null, null, null, null, null],
+    // Mosaic panels, each a different scene: hero boulevard, neon portrait,
+    // coastal highway, neon gas station, pier, convertible street.
+    panelPhoto: [0, 3, 4, 5, 1, 2, 0, 3, 4],
+    // Crops are per panel slot: the portrait and pier faces get a top bias so
+    // they survive their panels; the hero stays centred (its face is high).
+    crops: [
+      { ox: 0, oy: 0, zoom: 1 },
+      { ox: 0, oy: -0.2, zoom: 1 },
+      { ox: 0, oy: 0, zoom: 1 },
+      { ox: 0, oy: -0.15, zoom: 1 },
+      { ox: 0, oy: -0.3, zoom: 1 },
+      { ox: 0, oy: 0, zoom: 1 },
+      { ox: 0, oy: -0.45, zoom: 1 },
+      { ox: 0, oy: -0.45, zoom: 1 },
+      { ox: 0, oy: -0.45, zoom: 1 },
+    ],
     showPalms: true,
     showBadge: true,
     grain: true,
   };
 }
 
-/** Panel rectangles (fractions of the image area) for a layout, plus rotations. */
+/** Panel rectangles (fractions of the cover) for a layout, plus rotations. */
 export function layoutPanels(layout, w, h) {
   const g = Math.max(2, Math.round(w * 0.005));
   const px = (fx, fy, fw, fh, rot = 0) => ({
@@ -60,6 +82,14 @@ export function layoutPanels(layout, w, h) {
     rot,
   });
   switch (layout) {
+    case 'mosaic': return [
+      px(0, 0, 0.54, 1),
+      px(0.54, 0, 0.23, 0.33),
+      px(0.77, 0, 0.23, 0.33),
+      px(0.54, 0.33, 0.46, 0.27),
+      px(0.54, 0.60, 0.23, 0.40),
+      px(0.77, 0.60, 0.23, 0.40),
+    ];
     case 'grid9': {
       const out = [];
       for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) out.push(px(c / 3, r / 3, 1 / 3, 1 / 3));
@@ -247,6 +277,16 @@ export function applyGrade(ctx, rect, gradeId) {
     ctx.fillStyle = 'rgba(255,220,160,0.12)';
     ctx.fillRect(x, y, w, h);
     ctx.globalCompositeOperation = 'source-over';
+  } else if (gradeId === 'fever') {
+    // Hot magenta wash from the top, warm amber lift from the bottom.
+    const t = ctx.createLinearGradient(0, y, 0, y + h);
+    t.addColorStop(0, 'rgba(255,46,136,0.26)');
+    t.addColorStop(0.55, 'rgba(255,120,80,0.10)');
+    t.addColorStop(1, 'rgba(255,179,71,0.20)');
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = t;
+    ctx.fillRect(x, y, w, h);
+    ctx.globalCompositeOperation = 'source-over';
   } else { // bubblegum
     ctx.globalCompositeOperation = 'soft-light';
     ctx.fillStyle = 'rgba(255,112,166,0.55)';
@@ -291,7 +331,7 @@ export function finishCover(ctx, w, h, grainOn) {
   ctx.fillRect(0, 0, w, h);
 }
 
-/** Halftone dots fading down from the top of the title band. */
+/** Halftone dots fading down from a band's top edge. */
 function drawHalftone(ctx, x, y, w, rows, color) {
   ctx.save();
   ctx.fillStyle = color;
@@ -319,54 +359,139 @@ function fitFont(ctx, text, maxWidth, startSize, family, weight = '') {
   return size;
 }
 
-/** The title band: halftone strip, script subtitle, big Anton title, heat badge. */
-export function drawTitleBand(ctx, rect, state) {
-  const { x, y, w, h } = rect;
-  const g = gradeDef(state.grade);
-  const bg = ctx.createLinearGradient(0, y, 0, y + h);
-  bg.addColorStop(0, '#1c0a33');
-  bg.addColorStop(1, '#0d0218');
-  ctx.fillStyle = bg;
-  ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = g.sky[1];
-  ctx.fillRect(x, y, w, Math.max(3, h * 0.02));
-  drawHalftone(ctx, x, y + h * 0.03, w, 3, g.sky[2]);
-  const title = (state.title || 'VICE CITY').trim().toUpperCase();
-  const sub = (state.subtitle || '').trim();
+/** A spiky starburst seal: gradient fill, dark outline, three lines of text. */
+function drawStarburst(ctx, cx, cy, r, lines) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  const spikes = 16;
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 === 0 ? r : r * 0.82;
+    const px = Math.cos(a) * rr;
+    const py = Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  const fill = ctx.createRadialGradient(0, -r * 0.3, r * 0.1, 0, 0, r);
+  fill.addColorStop(0, '#ffe9a8');
+  fill.addColorStop(0.55, '#ff9e57');
+  fill.addColorStop(1, '#ff2e88');
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(20,3,38,0.9)';
+  ctx.lineWidth = Math.max(2, r * 0.04);
+  ctx.stroke();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const cx = x + w / 2;
-  let titleY = y + h * 0.56;
-  if (sub) {
-    // Keep the script subtitle clear of the heat badge at the right.
-    const subSize = fitFont(ctx, sub, w * 0.60, h * 0.20, 'Pacifico, cursive');
-    ctx.fillStyle = g.sky[2];
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 6;
-    ctx.fillText(sub, cx, y + h * 0.24);
-    ctx.shadowBlur = 0;
-    titleY = y + h * 0.64;
-  }
-  const size = fitFont(ctx, title, w * 0.90, h * 0.46, 'Anton, "Arial Black", sans-serif');
+  ctx.fillStyle = '#1c0a33';
+  const [top, mid, bot] = lines;
+  const topSize = fitFont(ctx, top, r * 1.1, r * 0.30, 'Anton, "Arial Black", sans-serif');
+  ctx.font = `${topSize}px Anton, "Arial Black", sans-serif`;
+  ctx.fillText(top, 0, -r * 0.42);
+  const midSize = fitFont(ctx, mid, r * 1.25, r * 0.34, 'Anton, "Arial Black", sans-serif');
+  ctx.font = `${midSize}px Anton, "Arial Black", sans-serif`;
+  ctx.fillText(mid, 0, -r * 0.02);
+  const botSize = fitFont(ctx, bot, r * 1.25, r * 0.30, 'Anton, "Arial Black", sans-serif');
+  ctx.font = `${botSize}px Anton, "Arial Black", sans-serif`;
+  ctx.fillText(bot, 0, r * 0.38);
+  ctx.restore();
+}
+
+/** The chrome title: slanted, magenta drop shadow, dark outline, gradient fill. */
+export function drawChromeTitle(ctx, W, H, state) {
+  const g = gradeDef(state.grade);
+  const title = (state.title || 'VICE CITY').trim().toUpperCase();
+  const sub = (state.subtitle || '').trim();
+  const cx = W / 2;
+  const titleY = H * 0.665;
+  ctx.save();
+  ctx.translate(cx, titleY);
+  ctx.rotate(-0.045);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const size = fitFont(ctx, title, W * 0.94, H * 0.29, 'Anton, "Arial Black", sans-serif');
+  // Hard magenta drop shadow, offset down-right.
   ctx.font = `${size}px Anton, "Arial Black", sans-serif`;
+  ctx.fillStyle = '#8f0f56';
+  ctx.fillText(title, size * 0.045, size * 0.06);
+  // Thick dark outline, then the chrome gradient fill.
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(16,4,32,0.95)';
-  ctx.lineWidth = Math.max(2, size * 0.09);
-  ctx.shadowColor = 'rgba(0,0,0,0.55)';
-  ctx.shadowBlur = size * 0.14;
-  ctx.shadowOffsetY = size * 0.05;
-  ctx.strokeText(title, cx, titleY);
-  ctx.fillStyle = state.titleColor || '#ffffff';
-  ctx.fillText(title, cx, titleY);
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
-  if (state.showBadge) {
-    // Heat badge: tilted pill, top-right of the band.
+  ctx.strokeStyle = 'rgba(20,3,38,0.95)';
+  ctx.lineWidth = Math.max(2, size * 0.11);
+  ctx.strokeText(title, 0, 0);
+  const chrome = ctx.createLinearGradient(0, -size * 0.55, 0, size * 0.55);
+  chrome.addColorStop(0, state.titleColor || '#ffffff');
+  chrome.addColorStop(0.30, '#fff6c8');
+  chrome.addColorStop(0.52, '#ffd166');
+  chrome.addColorStop(0.72, '#ff9e57');
+  chrome.addColorStop(1, '#ff2e88');
+  ctx.fillStyle = chrome;
+  ctx.fillText(title, 0, 0);
+  ctx.restore();
+  if (sub) {
+    // Script subtitle overlapping the title's lower edge, right of centre.
     ctx.save();
-    const bw = Math.min(w * 0.24, 210);
-    const bh = h * 0.30;
-    ctx.translate(x + w - bw / 2 - w * 0.03, y + bh * 0.72);
+    ctx.translate(cx + W * 0.11, titleY + size * 0.48);
+    ctx.rotate(-0.05);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const subSize = fitFont(ctx, sub, W * 0.50, size * 0.42, 'Pacifico, cursive');
+    ctx.font = `${subSize}px Pacifico, cursive`;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(20,3,38,0.85)';
+    ctx.lineWidth = Math.max(2, subSize * 0.08);
+    ctx.strokeText(sub, 0, 0);
+    ctx.fillStyle = g.sky[2];
+    ctx.fillText(sub, 0, 0);
+    ctx.restore();
+  }
+  return { size, titleY };
+}
+
+/** All poster furniture: scrim, quote strip, starburst, HEAT pill, chrome title,
+ *  bottom tagline strip and micro credits line. Drawn over the photo panels. */
+export function drawPosterFurniture(ctx, W, H, state) {
+  const g = gradeDef(state.grade);
+  // Dark scrim behind the title zone so the lettering reads over bright photos.
+  const scrim = ctx.createLinearGradient(0, H * 0.42, 0, H * 0.90);
+  scrim.addColorStop(0, 'rgba(10,0,20,0)');
+  scrim.addColorStop(0.38, 'rgba(10,0,20,0.30)');
+  scrim.addColorStop(1, 'rgba(10,0,20,0.50)');
+  ctx.fillStyle = scrim;
+  ctx.fillRect(0, H * 0.42, W, H * 0.48);
+  // Press-quote strip, just above the title: gold stars + an original quote.
+  const quote = '“A POSTCARD FROM THE EDGE” — VICE CITY GAZETTE';
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const qSize = fitFont(ctx, quote, W * 0.40, H * 0.032, 'Anton, "Arial Black", sans-serif');
+  ctx.font = `${qSize}px Anton, "Arial Black", sans-serif`;
+  const stars = '★★★★★ ';
+  const starsW = ctx.measureText(stars).width;
+  const textW = ctx.measureText(quote).width;
+  const stripH = qSize * 2.2;
+  const stripY = H * 0.485 - stripH / 2;
+  const stripW = starsW + textW + qSize * 1.6;
+  const stripX = W * 0.03;
+  ctx.fillStyle = 'rgba(13,2,24,0.78)';
+  ctx.beginPath();
+  ctx.roundRect(stripX, stripY, stripW, stripH, stripH / 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffd166';
+  ctx.fillText(stars, stripX + qSize * 0.8, H * 0.485);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(quote, stripX + qSize * 0.8 + starsW, H * 0.485);
+  ctx.restore();
+  if (state.showBadge) {
+    // Starburst seal at the panel junction, and the HEAT pill top-right.
+    drawStarburst(ctx, W * 0.615, H * 0.36, W * 0.082, ['★★★', 'ORIGINAL', 'COVER ART']);
+    ctx.save();
+    ctx.translate(W * 0.925, H * 0.045);
     ctx.rotate(-0.07);
+    const bw = W * 0.14;
+    const bh = H * 0.05;
     const pill = ctx.createLinearGradient(-bw / 2, 0, bw / 2, 0);
     pill.addColorStop(0, '#ff2e88');
     pill.addColorStop(1, '#ff9e57');
@@ -375,25 +500,112 @@ export function drawTitleBand(ctx, rect, state) {
     ctx.roundRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(bh * 0.52)}px Anton, "Arial Black", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const pillSize = fitFont(ctx, '★★★★★ HEAT', bw * 0.86, bh * 0.52, 'Anton, "Arial Black", sans-serif');
+    ctx.font = `${pillSize}px Anton, "Arial Black", sans-serif`;
     ctx.fillText('★★★★★ HEAT', 0, 1);
     ctx.restore();
   }
+  drawChromeTitle(ctx, W, H, state);
+  // Bottom strip: gold rule, halftone, striped sun, palm silhouettes, tagline.
+  const y0 = H * 0.885;
+  const y1 = H * 0.955;
+  const strip = ctx.createLinearGradient(0, y0, 0, y1);
+  strip.addColorStop(0, '#160826');
+  strip.addColorStop(1, g.sky[1]);
+  ctx.fillStyle = strip;
+  ctx.fillRect(0, y0, W, y1 - y0);
+  ctx.fillStyle = '#ffd166';
+  ctx.fillRect(0, y0, W, Math.max(2, H * 0.004));
+  drawHalftone(ctx, 0, y0 + (y1 - y0) * 0.06, W, 1, g.sky[2]);
+  // Retro striped sun, left of the tagline: solid on top, slits widening down.
+  const sunX = W * 0.075;
+  const sunY = (y0 + y1) / 2 - (y1 - y0) * 0.06;
+  const sunR = (y1 - y0) * 0.46;
+  ctx.save();
+  const sunFill = ctx.createLinearGradient(sunX, sunY - sunR, sunX, sunY + sunR);
+  sunFill.addColorStop(0, '#fff6c8');
+  sunFill.addColorStop(1, '#ff9e57');
+  ctx.fillStyle = sunFill;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.clip();
+  ctx.fillStyle = '#160826';
+  for (let i = 0; i < 3; i++) {
+    const sy = sunY + sunR * (0.08 + i * 0.32);
+    ctx.fillRect(sunX - sunR, sy, sunR * 2, Math.max(1, sunR * (0.07 + i * 0.05)));
+  }
+  ctx.restore();
+  if (state.showPalms) {
+    const s = (y1 - y0) * 0.85;
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    drawPalm(ctx, W * 0.155, y1 - 2, s, 0.35, 'rgba(12,2,24,0.95)');
+    drawPalm(ctx, W * 0.845, y1 - 2, s * 0.9, -0.4, 'rgba(12,2,24,0.95)');
+    drawPalm(ctx, W * 0.925, y1 - 2, s * 0.75, 0.3, 'rgba(12,2,24,0.95)');
+    ctx.restore();
+  }
+  // Tagline, centred between the sun and the palms.
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  try { ctx.letterSpacing = '2px'; } catch { /* older canvas: no letter spacing */ }
+  const tag = 'LEONIDA • TWO CITIES • ONE SUNSET • COMING SOON';
+  const tagSize = fitFont(ctx, tag, W * 0.52, H * 0.030, 'Anton, "Arial Black", sans-serif');
+  ctx.font = `${tagSize}px Anton, "Arial Black", sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(tag, W * 0.50, (y0 + y1) / 2);
+  try { ctx.letterSpacing = '0px'; } catch { /* reset for later draws */ }
+  ctx.restore();
+  // Micro credits line, VC chip and barcode along the very bottom.
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  const cred = 'VICE CITY — A SUNSET HEIST POSTER • STARRING YOU • SHOT ON YOUR OWN CAMERA • GRADED BY HAND';
+  const credSize = fitFont(ctx, cred, W * 0.86, H * 0.016, 'system-ui, sans-serif');
+  ctx.font = `${credSize}px system-ui, sans-serif`;
+  ctx.fillText(cred, W * 0.50, H * 0.978);
+  ctx.fillStyle = '#ff2e88';
+  const chip = H * 0.028;
+  ctx.beginPath();
+  ctx.roundRect(W * 0.012, H * 0.978 - chip / 2, chip, chip, chip * 0.2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `${Math.round(chip * 0.55)}px Anton, "Arial Black", sans-serif`;
+  ctx.fillText('VC', W * 0.012 + chip / 2, H * 0.978 + 1);
+  const barW = W * 0.038;
+  const barH = H * 0.030;
+  const barX = W * 0.955;
+  const barY = H * 0.978 - barH / 2;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillStyle = '#111111';
+  let bx = barX + 2;
+  let seed = 11;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  while (bx < barX + barW - 3) {
+    const bw = 1 + rnd() * 3;
+    if (rnd() > 0.45) ctx.fillRect(bx, barY + 2, bw, barH - 4);
+    bx += bw + 1 + rnd() * 2;
+  }
+  ctx.restore();
 }
 
 /**
  * Draws the whole cover onto `canvas` (any size) from `state`.
  * Photos are HTMLImageElements (or null); crops are per panel slot.
+ * Panels fill the whole cover; the chrome title and poster furniture overlap them.
  */
 export function drawCover(canvas, state) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width;
   const H = canvas.height;
-  const titleH = Math.round(H * (state.layout === 'tilted' ? 0.17 : 0.21));
-  const imageH = H - titleH;
   ctx.clearRect(0, 0, W, H);
-  drawSky(ctx, W, imageH, state.grade);
-  const panels = layoutPanels(state.layout, W, imageH);
+  drawSky(ctx, W, H, state.grade);
+  const panels = layoutPanels(state.layout, W, H);
   const frame = state.layout === 'tilted';
   panels.forEach((p, i) => {
     ctx.save();
@@ -436,15 +648,7 @@ export function drawCover(canvas, state) {
       ctx.strokeRect(p.x, p.y, p.w, p.h);
     }
   });
-  if (state.showPalms) {
-    const s = Math.min(W, H) * 0.30;
-    ctx.save();
-    ctx.globalAlpha = 0.96;
-    drawPalm(ctx, W * 0.02, imageH * 0.99, s, 0.35, 'rgba(12,2,24,0.95)');
-    drawPalm(ctx, W * 0.99, imageH * 0.99, s * 0.8, -0.4, 'rgba(12,2,24,0.95)');
-    ctx.restore();
-  }
-  drawTitleBand(ctx, { x: 0, y: imageH, w: W, h: titleH }, state);
+  drawPosterFurniture(ctx, W, H, state);
   finishCover(ctx, W, H, state.grain);
 }
 

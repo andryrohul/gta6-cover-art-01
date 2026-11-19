@@ -1,10 +1,13 @@
 // Fixed scenes for screenshots: ?shot=editor shows the editor with a sample photo loaded;
 // ?shot=cover draws one exported cover full-frame at the requested size.
-// Query params: photo (boulevard|pier), caption, subtitle, layout, grade, w, h.
+// Query params: photos (comma-separated sample names in panel order, e.g.
+// photos=boulevard,portrait,highway,gasstation,pier,street), photo (legacy: one
+// sample name, the rest fill in SAMPLES order), caption, subtitle, layout, grade, w, h.
 // window.__shotReady is set once the scene has painted.
+import { SAMPLES } from './cover.js';
+
 export async function runShot(shot, query, app) {
   const { state, canvas, redraw, loadImage, setStatus } = app;
-  const photoName = query.get('photo') ?? 'boulevard';
   const layout = query.get('layout');
   const grade = query.get('grade');
   if (layout) state.layout = layout;
@@ -17,14 +20,27 @@ export async function runShot(shot, query, app) {
     state.subtitle = query.get('subtitle');
     document.getElementById('subtitle').value = state.subtitle;
   }
-  // Put the named sample in every panel slot that names it, so a one-photo
-  // cover still fills a multi-panel layout.
-  const sample = await loadImage(`samples/${photoName}.jpg`);
-  const other = photoName === 'boulevard' ? 'pier' : 'boulevard';
-  const second = await loadImage(`samples/${other}.jpg`);
-  state.photos[0] = sample;
-  state.photos[1] = second;
-  state.panelPhoto = state.panelPhoto.map((_, i) => (i % 2 === 0 ? 0 : 1));
+  // Panel order comes from `photos` when given; otherwise the named `photo`
+  // leads and the remaining samples follow in SAMPLES order, so every panel
+  // shows a different scene instead of the same two photos alternating.
+  let names = (query.get('photos') || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => SAMPLES.includes(s));
+  if (!names.length) {
+    const first = query.get('photo') ?? 'boulevard';
+    names = [first, ...SAMPLES.filter((s) => s !== first)];
+  }
+  const loaded = {};
+  for (const name of new Set(names)) {
+    loaded[name] = await loadImage(`samples/${name}.jpg`);
+  }
+  // Keep every sample in a slot so the editor's photo picker stays complete.
+  SAMPLES.forEach((name, i) => {
+    if (loaded[name]) state.photos[i] = loaded[name];
+  });
+  const slotOf = (name) => SAMPLES.indexOf(name);
+  state.panelPhoto = state.panelPhoto.map((_, i) => slotOf(names[i % names.length]));
   if (shot === 'cover') {
     document.body.classList.add('shot-cover');
     const w = Number(query.get('w') || 1280);

@@ -1,9 +1,9 @@
 // Vice City Sunset — Cover Maker: a program/v1 entry (Node 22, standard library only).
 // The app is plain static files under app/ (index.html + ES modules, vendored OFL fonts,
-// no network request), and this program hands it in: it copies app/ and screenshots/
-// from beside this file to /output and writes /output/dossier.json, the summary the
-// judge reads, with the vendored make.fun library. Outside the grader's container,
-// MAKEFUN_OUTPUT_DIR stands in for /output:
+// six AI-made sample photos, no network request), and this program hands it in: it
+// copies app/ and screenshots/ from beside this file to /output and writes
+// /output/dossier.json, the summary the judge reads, with the vendored make.fun
+// library. Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';

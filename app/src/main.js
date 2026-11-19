@@ -1,6 +1,6 @@
 // Vice City Sunset editor: wires the controls to the cover engine, loads the user's
 // photos (local only, never uploaded), and exports full-resolution PNGs.
-import { drawCover, exportCoverCanvas, defaultState, layoutPanels, LAYOUTS, GRADES, PRESETS, TITLE_COLORS } from './cover.js';
+import { drawCover, exportCoverCanvas, defaultState, layoutPanels, LAYOUTS, GRADES, SAMPLES, PRESETS, TITLE_COLORS } from './cover.js';
 import { runShot } from './shots.js';
 
 const canvas = document.getElementById('cover');
@@ -26,10 +26,10 @@ function redraw() {
   syncPanelControls();
 }
 
-/** Title-band height matches the engine so hit-testing lines up. */
+/** Panels fill the whole cover now (the v2 chrome title overlaps them), so the
+ *  hit-test area is the full canvas height. */
 function imageArea() {
-  const titleH = Math.round(canvas.height * (state.layout === 'tilted' ? 0.17 : 0.21));
-  return { titleH, imageH: canvas.height - titleH };
+  return { titleH: 0, imageH: canvas.height };
 }
 
 function panelRects() {
@@ -119,7 +119,7 @@ function buildChips() {
 function buildPhotoSelect() {
   const sel = document.getElementById('panel-photo');
   sel.innerHTML = '';
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const o = document.createElement('option');
     o.value = String(i);
     o.textContent = state.photos[i] ? `Photo ${i + 1}` : `Photo ${i + 1} (empty)`;
@@ -130,11 +130,12 @@ function buildPhotoSelect() {
 function buildThumbs() {
   const box = document.getElementById('thumbs');
   box.innerHTML = '';
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const img = state.photos[i];
     if (img) {
       const t = document.createElement('img');
-      t.className = 'thumb';
+      // Highlight the photo the selected panel shows.
+      t.className = 'thumb' + (state.panelPhoto[selectedPanel] === i ? ' on' : '');
       t.src = img.src;
       t.alt = `Photo ${i + 1}`;
       t.title = `Use photo ${i + 1} in the selected panel`;
@@ -160,7 +161,7 @@ async function addFiles(files) {
   if (!list.length) { setStatus('That file is not an image.'); return; }
   for (const file of list) {
     const slot = state.photos.findIndex((p) => p === null);
-    if (slot === -1) { setStatus('All 4 photo slots are full.'); break; }
+    if (slot === -1) { setStatus('All 6 photo slots are full.'); break; }
     const img = await loadImage(URL.createObjectURL(file));
     state.photos[slot] = img;
   }
@@ -279,11 +280,12 @@ function wireCanvas() {
   }, { passive: false });
 }
 
-/** Preloads the two free sample photos so the first open already shows a cover. */
+/** Preloads the six free sample photos so the first open already shows a cover. */
 async function loadSamples() {
   try {
-    state.photos[0] = await loadImage('samples/boulevard.jpg');
-    state.photos[1] = await loadImage('samples/pier.jpg');
+    for (let i = 0; i < SAMPLES.length; i++) {
+      state.photos[i] = await loadImage(`samples/${SAMPLES[i]}.jpg`);
+    }
   } catch { /* samples are optional; the editor still works with uploads */ }
   buildThumbs();
   buildPhotoSelect();
